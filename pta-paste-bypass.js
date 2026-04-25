@@ -139,14 +139,12 @@
         if (numberSpan) {
           const num = parseInt(numberSpan.textContent.trim());
           if (!isNaN(num)) {
-            console.log("%c✅ 当前题号: " + num, "color: green; font-weight: bold;");
             return num;
           }
         }
       }
     }
     
-    console.log("%c⚠️ 未找到active题号，默认为1", "color: orange; font-weight: bold;");
     return 1;
   }
 
@@ -264,7 +262,6 @@
               return;
             }
 
-            console.log("%c✅ AI 生成代码成功", "color: green; font-weight: bold;");
             resolve(code);
           } catch (e) {
             console.error("%c❌ 解析 API 响应失败", "color: red; font-weight: bold;", e.message);
@@ -339,7 +336,6 @@
 
         // 判断通过
         if (bodyText.includes("答案正确") || bodyText.includes("Accepted")) {
-          console.log("%c✅ 检测到答案正确", "color: green; font-weight: bold;");
           resolve(true);
           return;
         }
@@ -362,7 +358,6 @@
         
         for (const pattern of failurePatterns) {
           if (bodyText.includes(pattern)) {
-            console.log("%c❌ 检测到错误: " + pattern, "color: red; font-weight: bold;");
             resolve(false);
             return;
           }
@@ -370,7 +365,6 @@
         
         // 如果长时间没有任何结果，超时
         if (Date.now() - start > timeout) {
-          console.log("%c⏱️ 等待超时", "color: orange; font-weight: bold;");
           resolve(false);
           return;
         }
@@ -399,14 +393,12 @@
       if (numberSpan) {
         const num = parseInt(numberSpan.textContent.trim());
         if (num === nextNum) {
-          console.log("%c✅ 存在下一题(题号" + nextNum + ")，点击跳转", "color: green; font-weight: bold;");
           btn.click();
           return true;  // 成功找到并跳转
         }
       }
     }
     
-    console.log("%c❌ 不存在下一题", "color: red; font-weight: bold;");
     return false;  // 不存在下一题
   }
 
@@ -440,7 +432,6 @@
         restoreButtons();
         return;
       }
-      console.log("%c✅ 题目提取成功", "color: green; font-weight: bold;");
 
       const language = getLanguage();
       setStatus("调用 AI 生成代码...");
@@ -468,16 +459,13 @@
         await sleep(0);
       }
       cleanupTypingState();
-      console.log("%c✅ 代码输入完成", "color: green; font-weight: bold;");
 
       setStatus("点击提交...");
       await submitCode();
-      console.log("%c✅ 已提交代码", "color: green; font-weight: bold;");
 
       setStatus("等待评测结果...");
       const passed = await waitForResult();
       if (passed) {
-        console.log("%c✅ 答案正确！即将跳转", "color: green; font-weight: bold;");
         setStatus("通过！检查是否有下一题...");
         
         try {
@@ -501,28 +489,24 @@
               autoSolveRunning = false;
               autoSolveSequence();
             } else {
-              console.log("%c🛑 已停止自动解题流程", "color: orange; font-weight: bold;");
               autoSolveRunning = false;
               if (stopBtn) stopBtn.style.display = "none";
             }
           } else {
-            console.log("%c✅ 所有题目已完成！", "color: green; font-weight: bold;");
             setStatus("✅ 所有题目已完成！");
             restoreButtons();
             isAutoSolvingActive = false;
             if (stopBtn) stopBtn.style.display = "none";
           }
         } catch (nextErr) {
-          console.error("%c❌ 处理下一题时出错:", "color: red; font-weight: bold;", nextErr);
-          console.error(nextErr.stack);
+          console.error("处理下一题时出错:", nextErr.message);
         }
       } else {
         console.log("%c❌ 答案错误", "color: red; font-weight: bold;");
         setStatus("未通过，停止自动流程。");
         alert("评测未通过，请检查题目或手动调试。");
         isAutoSolvingActive = false;
-        cleanupTypingState();
-        autoSolveRunning = false;
+        restoreButtons();
         if (stopBtn) stopBtn.style.display = "none";
       }
     } catch (err) {
@@ -530,8 +514,7 @@
       setStatus("发生错误：" + err.message);
       alert("自动解题出错: " + err.message);
       isAutoSolvingActive = false;
-      cleanupTypingState();
-      autoSolveRunning = false;
+      restoreButtons();
       if (stopBtn) stopBtn.style.display = "none";
     }
   }
