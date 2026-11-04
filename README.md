@@ -11,9 +11,10 @@
 |------|----------|----------|
 | [`pta-paste-bypass.js`](./pta-paste-bypass.js) | `pintia.cn`（PTA 拼题A） | 突破粘贴限制 + AI 解题（判断/单选/多选/填空/函数填空/编程/代码补全）+ 批量模式 + 自动跳转 |
 | [`gxb-paste-bypass.js`](./gxb-paste-bypass.js) | `*.gaoxiaobang.com`（高校邦） | 粘贴解锁（含讨论区 UEditor）+ 测验题 AI 作答（单选/多选/判断/填空）+ 未答自查 |
-| [`ai-quiz-helper.js`](./ai-quiz-helper.js) | 高校邦 / 学习通 / 智慧树 / U课 / PTA | 通用 AI 自动答题面板（**第三方脚本**，见下方说明） |
 
-> 三个脚本互相独立，按你使用的平台安装其一即可。高校邦用户推荐 **`gxb-paste-bypass.js`**（解锁更彻底、面板更轻）。
+> 两个脚本互相独立，按你使用的平台安装其一即可。高校邦用户推荐 **`gxb-paste-bypass.js`**（解锁更彻底、面板更轻）。
+>
+> 若需覆盖学习通、智慧树、U课等多平台，可自行寻找对应的第三方脚本；本仓库仅收录自有脚本。
 
 ## 📦 安装
 
@@ -125,40 +126,6 @@ __gxbDebug()        // 列表打印每题：题型文字 / 识别结果 / 选项
 
 ---
 
-## 三、ai-quiz-helper.js（第三方通用答题助手）
-
-### ⚠️ 来源说明
-
-该脚本**非本项目原创**，作者为 **huangch**（当前版本 3.10.5），原始分发地址：
-
-```
-https://ai-quiz-helper.pages.dev/ai-quiz-helper.js
-```
-
-仓库内这份副本是本地修改版，仅修正了高校邦多选题填充失效的问题（字母转序号越界、多选图标选择器不匹配）。版权归原作者所有，**如需最新版请从上面的 `@updateURL` 获取**；若原作者有异议，可随时从本仓库移除。
-
-### 🌐 支持的平台
-
-| 平台 | 匹配规则 |
-|------|----------|
-| 高校邦 | `*.gaoxiaobang.com` |
-| 学习通 / 超星章节作业 | `*.chaoxing.com/work/doHomeWorkNew*` |
-| 智慧树 | `*.zhihuishu.com` |
-| U课 | `*.uooc.net.cn` |
-| PTA 拼题A | `*.pintia.cn/problem-sets/*/exam/*` |
-
-### 💡 怎么选
-
-| 场景 | 建议 |
-|------|------|
-| 只考高校邦 | 用 `gxb-paste-bypass.js`（面板更轻、解锁更彻底） |
-| 同时用学习通 / 智慧树 / U课 | 用 `ai-quiz-helper.js`（一个脚本覆盖多平台） |
-| 用 PTA | 用 `pta-paste-bypass.js`（题型支持最全，含编程题） |
-
-> 两个高校邦脚本**不要同时装**，否则可能重复点击导致多选被取消。
-
----
-
 ## 🔧 API 兼容性
 
 支持任何兼容 OpenAI Chat Completions 格式的 API：
@@ -223,6 +190,4 @@ A: 支持 C、C++、Java、Python，可在 PTA 脚本的配置中选择。
 
 ## 📄 许可证
 
-本项目原创脚本（`pta-paste-bypass.js`、`gxb-paste-bypass.js`）使用 [MIT License](./LICENSE)。
-
-`ai-quiz-helper.js` 为第三方脚本，版权归原作者 **huangch** 所有。
+本项目脚本（`pta-paste-bypass.js`、`gxb-paste-bypass.js`）使用 [MIT License](./LICENSE)。
