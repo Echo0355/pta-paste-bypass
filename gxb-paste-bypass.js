@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         高校邦 粘贴解锁 + AI 答题助手
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.2.1
 // @description  解除高校邦（gaoxiaobang）的粘贴/复制/右键/选中限制，并支持测验题的单选题、多选题、判断题、填空题 AI 自动作答
 // @author       xiaole
 // @match        *://*.gaoxiaobang.com/*
@@ -29,7 +29,8 @@
     apiKey: '',
     apiUrl: '',
     apiModel: '',
-    extraContext: ''
+    extraContext: '',
+    panelOpen: false          // 面板默认收起，只留悬浮球
   };
 
   function loadCfg() {
@@ -508,6 +509,17 @@ ${chunk.map(p => buildPrompt(p.el, p.idx, p.type)).join('\n\n')}`;
      ============================================================ */
   const CSS = `
     #gxbQuizPanel{position:fixed;top:20px;right:20px;width:300px;background:#f8f9ff;border-radius:14px;color:#333;font-family:-apple-system,"Microsoft YaHei",sans-serif;font-size:13px;display:flex;flex-direction:column;overflow:hidden;border:1px solid #e0e3f0;z-index:2147483000;box-shadow:0 10px 40px rgba(0,0,0,.18);line-height:1.5;}
+    #gxbQuizPanel.gxb-hidden{display:none !important;}
+    /* 收起后的小球：比面板小，但做得显眼，进页面先脉冲三次提醒，之后安静 */
+    #gxbQuizBall{position:fixed;top:16px;right:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#7c8cf8,#6f42c1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:grab;z-index:2147483000;border:2px solid rgba(255,255,255,.92);opacity:.92;transition:opacity .2s,transform .2s,box-shadow .2s;user-select:none;-webkit-user-select:none;animation:gxbBallPulse 1.8s ease-out 3;box-shadow:0 8px 24px rgba(102,126,234,.55);}
+    #gxbQuizBall:hover{opacity:1;transform:scale(1.08);box-shadow:0 10px 30px rgba(102,126,234,.7);}
+    #gxbQuizBall:active{cursor:grabbing;transform:scale(.98);}
+    #gxbQuizBall.gxb-hidden{display:none !important;}
+    @keyframes gxbBallPulse{0%{box-shadow:0 8px 24px rgba(102,126,234,.55),0 0 0 0 rgba(124,140,248,.55);}70%{box-shadow:0 8px 24px rgba(102,126,234,.55),0 0 0 14px rgba(124,140,248,0);}100%{box-shadow:0 8px 24px rgba(102,126,234,.55),0 0 0 0 rgba(124,140,248,0);}}
+    #gxbQuizPanel .gxb-hdr-tools{display:flex;align-items:center;gap:8px;}
+    #gxbQuizPanel .gxb-ver{font-size:11px;opacity:.75;}
+    #gxbQuizPanel .gxb-hdr-btn{width:22px!important;height:22px;padding:0!important;margin:0!important;border-radius:6px!important;background:rgba(255,255,255,.18);color:#fff;font-size:15px!important;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:bold;}
+    #gxbQuizPanel .gxb-hdr-btn:hover{background:rgba(255,255,255,.34);}
     #gxbQuizPanel *{box-sizing:border-box;}
     #gxbPanelHandle{padding:10px 14px;background:linear-gradient(135deg,#667eea,#764ba2);cursor:move;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:13px;color:#fff;}
     #gxbQuizPanel .gq-sec{border-bottom:1px solid #e8eaf0;}
@@ -537,7 +549,13 @@ ${chunk.map(p => buildPrompt(p.el, p.idx, p.type)).join('\n\n')}`;
   `;
 
   const PANEL_HTML = `
-    <div id="gxbPanelHandle"><span>🎓 高校邦助手</span><span style="font-size:11px;opacity:.75">v1.1.0</span></div>
+    <div id="gxbPanelHandle">
+      <span>🎓 高校邦助手</span>
+      <span class="gxb-hdr-tools">
+        <span class="gxb-ver">v1.2.1</span>
+        <button id="gxbMin" class="gxb-hdr-btn" title="收起面板（在页面里按 Alt+G 可再次展开）">—</button>
+      </span>
+    </div>
     <div class="gq-sec">
       <div class="gq-hdr" id="gxbCfgHdr">⚙️ API 配置 <span class="arr">▼</span></div>
       <div class="gq-body" id="gxbCfgBody">
@@ -582,6 +600,66 @@ ${chunk.map(p => buildPrompt(p.el, p.idx, p.type)).join('\n\n')}`;
     document.body.appendChild(panel);
 
     const $ = id => document.getElementById(id);
+
+    /* ── 收起 / 展开 ──
+       默认隐藏，只在右上角留一个半透明小球，避免遮挡题目；
+       状态记在 cfg.panelOpen 里，下次进页面沿用。 */
+    const ball = document.createElement('div');
+    ball.id = 'gxbQuizBall';
+    ball.textContent = '🎓';
+    ball.title = '高校邦助手（点击展开，Alt+G 快捷键）';
+    document.body.appendChild(ball);
+
+    const setOpen = (open, remember = true) => {
+      panel.classList.toggle('gxb-hidden', !open);
+      ball.classList.toggle('gxb-hidden', open);
+      if (remember) { cfg.panelOpen = open; saveCfg(); }
+    };
+    setOpen(cfg.panelOpen === true, false);
+    cfg.panelOpen = cfg.panelOpen === true;   // 统一成布尔值
+
+    /* 小球可拖动，位置记下来（默认贴右上角，挡住头像时拖走即可） */
+    let ballMoved = false, ballDown = false, bStart = { x: 0, y: 0, l: 0, t: 0 };
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    if (cfg.ballPos && typeof cfg.ballPos.x === 'number') {
+      ball.style.right = 'auto';
+      ball.style.left = `${cfg.ballPos.x}px`;
+      ball.style.top = `${cfg.ballPos.y}px`;
+    }
+    ball.addEventListener('mousedown', e => {
+      ballDown = true;
+      ballMoved = false;
+      const r = ball.getBoundingClientRect();
+      bStart = { x: e.clientX, y: e.clientY, l: r.left, t: r.top };
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!ballDown) return;
+      const dx = e.clientX - bStart.x, dy = e.clientY - bStart.y;
+      if (!ballMoved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;   // 抖动不算拖动
+      ballMoved = true;
+      ball.style.right = 'auto';
+      ball.style.left = `${clamp(bStart.l + dx, 0, window.innerWidth - 60)}px`;
+      ball.style.top = `${clamp(bStart.t + dy, 0, window.innerHeight - 60)}px`;
+    });
+    document.addEventListener('mouseup', () => {
+      if (!ballDown) return;
+      ballDown = false;
+      if (!ballMoved) return;
+      cfg.ballPos = { x: parseFloat(ball.style.left) || 0, y: parseFloat(ball.style.top) || 0 };
+      saveCfg();   // ballMoved 留到下次 mousedown 再重置，避免拖完那一下被当成点击
+    });
+
+    ball.addEventListener('click', () => { if (!ballMoved) setOpen(true); });
+    $('gxbMin').addEventListener('mousedown', e => e.stopPropagation());   // 别触发拖动
+    $('gxbMin').addEventListener('click', e => { e.stopPropagation(); setOpen(false); });
+    document.addEventListener('keydown', e => {
+      const k = String(e.key || '').toLowerCase();
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && k === 'g') {
+        e.preventDefault();
+        setOpen(panel.classList.contains('gxb-hidden'));
+      }
+    });
 
     /* 恢复配置 */
     $('gxbApiType').value = cfg.apiType || 'deepseek';
@@ -724,5 +802,5 @@ ${chunk.map(p => buildPrompt(p.el, p.idx, p.type)).join('\n\n')}`;
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     boot();   // body 已就绪（脚本被延迟注入 / bfcache 返回）时立刻挂载
   }
-  console.log(TAG, 'v1.1.0 已加载');
+  console.log(TAG, 'v1.2.1 已加载（Alt+G 显示/隐藏面板）');
 })();
